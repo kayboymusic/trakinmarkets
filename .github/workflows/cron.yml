@@ -1,0 +1,35 @@
+name: cron
+
+on:
+  schedule:
+    # GitHub Actions cron's effective minimum is ~5 min; runs may be delayed during peak load.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: trakin-cron
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: ingest
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sf -X POST "$APP_URL/api/cron/ingest" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --max-time 60 -o /tmp/ingest.json
+          cat /tmp/ingest.json
+      - name: rank
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sf -X POST "$APP_URL/api/cron/rank" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --max-time 60 -o /tmp/rank.json
+          cat /tmp/rank.json

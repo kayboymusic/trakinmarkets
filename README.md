@@ -66,13 +66,19 @@ curl -X POST http://localhost:3000/api/cron/rank \
 
 In dev, the auth header is optional (only enforced when `NODE_ENV=production`).
 
-## Deployment (Vercel)
+## Deployment (Vercel + GitHub Actions cron)
 
-1. `vercel link` and import the repo.
-2. Add all env vars from `.env.example` to the project.
-3. Crons in `vercel.json` run `/api/cron/ingest` and `/api/cron/rank` every minute. Vercel attaches `Authorization: Bearer $CRON_SECRET` automatically.
+1. Push the repo to GitHub.
+2. Import on https://vercel.com/new — Vercel auto-detects Next.js. Add all env vars from `.env.example`.
+3. Deploy. Note the production URL (e.g. `https://trakinmarkets.vercel.app`).
+4. In the GitHub repo → Settings → Secrets and variables → Actions, add two secrets:
+   - `APP_URL` — the Vercel production URL (no trailing slash)
+   - `CRON_SECRET` — same value as the env var on Vercel
+5. The workflow at `.github/workflows/cron.yml` then runs `/api/cron/ingest` + `/api/cron/rank` every ~5 min.
 
-> Note: Vercel Cron's minimum cadence is 1 minute. The PRD calls for 30s — to hit that, either run a second timer (e.g. inside the route handler with `setTimeout`) or use Supabase `pg_cron` to invoke the routes twice per minute.
+Why GitHub Actions and not Vercel Cron: Vercel's Hobby tier limits crons to once per day. Pro ($20/mo) unlocks any cadence — at that point you can move the schedule into `vercel.json`.
+
+GitHub Actions cron has known delays during peak load; effective minimum is ~5 min. For tighter cadence: Vercel Pro, an external scheduler (cron-job.org), or Supabase `pg_cron`.
 
 ## Bayse
 
