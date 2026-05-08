@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchPolymarket } from "@/lib/ingest/polymarket";
 import { fetchBayse } from "@/lib/ingest/bayse";
+import { fetchKalshi } from "@/lib/ingest/kalshi";
 import { supabaseServer } from "@/lib/supabase/server";
 import { requireCronAuth } from "@/lib/auth";
 import type { NormalizedMarket } from "@/lib/ingest/types";
@@ -21,14 +22,16 @@ export async function POST(req: Request) {
   const guard = requireCronAuth(req);
   if (guard) return guard;
 
-  const [poly, bayse] = await Promise.all([
+  const [poly, bayse, kalshi] = await Promise.all([
     ingestSource("polymarket", fetchPolymarket),
     ingestSource("bayse", fetchBayse),
+    ingestSource("kalshi", fetchKalshi),
   ]);
 
-  const all = [...poly.items, ...bayse.items];
+  const sources = [poly, bayse, kalshi];
+  const all = [...poly.items, ...bayse.items, ...kalshi.items];
   if (all.length === 0) {
-    return NextResponse.json({ ok: true, ingested: 0, sources: [poly, bayse].map((s) => ({ name: s.name, count: s.items.length, error: s.error })) });
+    return NextResponse.json({ ok: true, ingested: 0, sources: sources.map((s) => ({ name: s.name, count: s.items.length, error: s.error })) });
   }
 
   const db = supabaseServer();
@@ -63,7 +66,7 @@ export async function POST(req: Request) {
     ingested: all.length,
     snapshots: snaps.length,
     errors: { markets: marketErr?.message, snapshots: snapErr?.message },
-    sources: [poly, bayse].map((s) => ({ name: s.name, count: s.items.length, error: s.error })),
+    sources: sources.map((s) => ({ name: s.name, count: s.items.length, error: s.error })),
   });
 }
 

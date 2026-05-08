@@ -1,4 +1,4 @@
-export type Platform = "polymarket" | "bayse";
+export type Platform = "polymarket" | "bayse" | "kalshi";
 
 export type TimeWindow = "15m" | "1h" | "4h";
 

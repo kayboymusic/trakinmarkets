@@ -11,7 +11,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Slider } from "@/components/ui/slider";
 import type { TimeWindow } from "@/types";
 
-export type PlatformFilter = "all" | "polymarket" | "bayse";
+export type PlatformFilter = "all" | "polymarket" | "bayse" | "kalshi";
 
 export interface FilterState {
   window: TimeWindow;
@@ -67,6 +67,7 @@ export function FeedFilters({ state, onChange }: Props) {
         <SelectContent>
           <SelectItem value="all">All platforms</SelectItem>
           <SelectItem value="polymarket">Polymarket</SelectItem>
+          <SelectItem value="kalshi">Kalshi</SelectItem>
           <SelectItem value="bayse">Bayse</SelectItem>
         </SelectContent>
       </Select>

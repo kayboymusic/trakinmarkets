@@ -15,13 +15,18 @@ export type Category = (typeof CATEGORY_PRIORITY)[number];
 const SYNONYMS: Record<string, Category> = {
   Geopolitics: "World",
   Economy: "Finance",
+  Economics: "Finance",
   Business: "Finance",
+  Financials: "Finance",
   Stocks: "Finance",
   Markets: "Finance",
   Election: "Politics",
   Elections: "Politics",
   Bitcoin: "Crypto",
   Ethereum: "Crypto",
+  "Climate and Weather": "Climate",
+  "Science and Technology": "Tech",
+  Entertainment: "Pop Culture",
 };
 
 export function pickCategory(tags: { label?: string }[] | undefined): string | null {

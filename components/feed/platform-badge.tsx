@@ -4,6 +4,7 @@ import type { Platform } from "@/types";
 const labels: Record<Platform, string> = {
   polymarket: "Polymarket",
   bayse: "Bayse",
+  kalshi: "Kalshi",
 };
 
 export function PlatformBadge({ platform }: { platform: Platform }) {
