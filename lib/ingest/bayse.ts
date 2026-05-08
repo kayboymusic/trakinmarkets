@@ -14,6 +14,9 @@ interface BayseMarketRaw {
   title?: string;
   slug?: string;
   url?: string;
+  image?: string;
+  image_url?: string;
+  icon?: string;
   yes_price?: number;
   probability?: number;
   liquidity?: number;
@@ -64,6 +67,7 @@ export async function fetchBayse(): Promise<NormalizedMarket[]> {
       native_id: nativeId,
       title,
       url: m.url ?? `https://www.bayse.markets/market/${m.slug ?? nativeId}`,
+      image_url: m.image_url ?? m.image ?? m.icon ?? null,
       category: m.category ?? null,
       liquidity: m.liquidity ?? null,
       volume: m.volume ?? null,

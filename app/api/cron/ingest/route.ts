@@ -41,6 +41,7 @@ export async function POST(req: Request) {
       native_id: m.native_id,
       title: m.title,
       url: m.url,
+      image_url: m.image_url,
       category: m.category,
       liquidity: m.liquidity,
       volume: m.volume,

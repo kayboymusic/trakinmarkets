@@ -8,6 +8,7 @@ export interface Market {
   native_id: string;
   title: string;
   url: string;
+  image_url: string | null;
   category: string | null;
   liquidity: number | null;
   volume: number | null;

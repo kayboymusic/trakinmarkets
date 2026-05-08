@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ArrowRight, ExternalLink, Sparkles } from "lucide-react";
 import type { FeedItem } from "@/types";
 import { fmtPct, fmtCompact, relTime } from "@/lib/format";
@@ -21,6 +22,7 @@ export function FeedCard({ item, onSeeWhy }: Props) {
   return (
     <Card className="group p-4 transition-colors hover:bg-card/60">
       <div className="flex items-start gap-4">
+        <MarketThumb url={market.image_url} alt={market.title} />
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
             <PlatformBadge platform={market.platform} />
@@ -69,5 +71,27 @@ export function FeedCard({ item, onSeeWhy }: Props) {
         </div>
       </div>
     </Card>
+  );
+}
+
+function MarketThumb({ url, alt }: { url: string | null; alt: string }) {
+  const [errored, setErrored] = useState(false);
+  if (!url || errored) {
+    return (
+      <div
+        aria-hidden
+        className="size-11 shrink-0 rounded-md border border-border/60 bg-card/40"
+      />
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt={alt}
+      loading="lazy"
+      onError={() => setErrored(true)}
+      className="size-11 shrink-0 rounded-md border border-border/60 bg-muted object-cover"
+    />
   );
 }

@@ -20,6 +20,8 @@ interface GammaMarket {
   endDate?: string;
   active?: boolean;
   closed?: boolean;
+  image?: string;
+  icon?: string;
   events?: GammaEventRef[];
 }
 
@@ -96,6 +98,7 @@ export async function fetchPolymarket(): Promise<NormalizedMarket[]> {
       native_id: m.id,
       title: m.question,
       url: `https://polymarket.com/market/${m.slug}`,
+      image_url: m.image ?? m.icon ?? null,
       category,
       liquidity: num(m.liquidity),
       volume: num(m.volume),
