@@ -49,7 +49,7 @@ async function detectForWindow(window: TimeWindow, markets: Market[]) {
     const past = latestPast.get(m.id);
     if (!past) continue;
     const delta = m.probability - past.probability;
-    if (!isSignificant(delta, m.liquidity)) continue;
+    if (!isSignificant(window, delta, m.liquidity)) continue;
     rows.push({
       market_id: m.id,
       time_window: window,
