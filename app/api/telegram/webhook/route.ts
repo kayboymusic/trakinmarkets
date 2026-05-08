@@ -42,9 +42,9 @@ const HELP =
   "/help — show this message";
 
 export async function POST(req: Request) {
-  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
   if (expectedSecret) {
-    const got = req.headers.get("x-telegram-bot-api-secret-token");
+    const got = req.headers.get("x-telegram-bot-api-secret-token")?.trim();
     if (got !== expectedSecret) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
