@@ -51,3 +51,15 @@ export interface AttributionEvent {
   headline: string;
   url?: string;
 }
+
+export interface CategoryCount {
+  name: string;
+  count: number;
+}
+
+export interface FeedResponse {
+  window: TimeWindow;
+  count: number;
+  categories: CategoryCount[];
+  items: FeedItem[];
+}

@@ -17,6 +17,8 @@ export interface FilterState {
   window: TimeWindow;
   platform: PlatformFilter;
   minDelta: number;
+  q: string;
+  category: string | null;
 }
 
 interface Props {
