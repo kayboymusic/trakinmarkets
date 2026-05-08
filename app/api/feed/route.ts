@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCachedFeed } from "@/lib/redis";
 import { supabaseServer, hasSupabase } from "@/lib/supabase/server";
+import { CATEGORY_PRIORITY } from "@/lib/ingest/categories";
 import type { CategoryCount, FeedItem, FeedResponse, Platform, TimeWindow } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -42,15 +43,20 @@ async function fallbackFeed(window: TimeWindow): Promise<FeedItem[]> {
 }
 
 function countCategories(items: FeedItem[]): CategoryCount[] {
-  const counts = new Map<string, number>();
+  // seed every priority category at 0 so the badge bar is stable across windows
+  const counts = new Map<string, number>(CATEGORY_PRIORITY.map((c) => [c, 0]));
   for (const i of items) {
     const c = i.market.category;
     if (!c) continue;
     counts.set(c, (counts.get(c) ?? 0) + 1);
   }
-  return Array.from(counts.entries())
+  // preserve priority order; any non-priority category surfaced by ingestion goes after
+  const priority = CATEGORY_PRIORITY.map((name) => ({ name, count: counts.get(name) ?? 0 }));
+  const extras = Array.from(counts.entries())
+    .filter(([name]) => !CATEGORY_PRIORITY.includes(name as (typeof CATEGORY_PRIORITY)[number]))
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  return [...priority, ...extras];
 }
 
 export async function GET(req: Request) {

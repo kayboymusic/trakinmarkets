@@ -38,6 +38,7 @@ function Pill({
   active: boolean;
   onClick: () => void;
 }) {
+  const empty = count === 0;
   return (
     <button
       type="button"
@@ -48,6 +49,7 @@ function Pill({
         active
           ? "border-foreground/20 bg-foreground/15 text-foreground"
           : "border-border/60 bg-card/40 text-muted-foreground hover:border-foreground/15 hover:text-foreground",
+        empty && !active && "opacity-50",
       )}
     >
       <span>{label}</span>
