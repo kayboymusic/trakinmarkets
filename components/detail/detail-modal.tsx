@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
 import { ExternalLink } from "lucide-react";
 import {
@@ -47,19 +48,24 @@ export function DetailModal({ item, onClose }: Props) {
         {item && (
           <>
             <DialogHeader>
-              <div className="mb-2 flex items-center gap-2">
-                <PlatformBadge platform={item.market.platform} />
-                <span className="text-xs text-muted-foreground">
-                  {item.market.liquidity != null ? `${fmtCompact(item.market.liquidity)} liq` : ""}
-                </span>
-              </div>
-              <DialogTitle className="text-lg leading-snug">{item.market.title}</DialogTitle>
-              <div className="mt-2 flex items-center gap-2 font-mono text-sm tabular-nums text-muted-foreground">
-                <span>{fmtPct(item.move.prob_from)}</span>
-                <span>→</span>
-                <span className="text-foreground">{fmtPct(item.move.prob_to)}</span>
-                <DeltaPill delta={item.move.delta} className="ml-1" />
-                <span className="text-xs">over {item.move.window}</span>
+              <div className="flex items-start gap-3">
+                <MarketThumb url={item.market.image_url} alt={item.market.title} />
+                <div className="min-w-0 flex-1">
+                  <div className="mb-2 flex items-center gap-2">
+                    <PlatformBadge platform={item.market.platform} />
+                    <span className="text-xs text-muted-foreground">
+                      {item.market.liquidity != null ? `${fmtCompact(item.market.liquidity)} liq` : ""}
+                    </span>
+                  </div>
+                  <DialogTitle className="text-lg leading-snug">{item.market.title}</DialogTitle>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 font-mono text-sm tabular-nums text-muted-foreground">
+                    <span>{fmtPct(item.move.prob_from)}</span>
+                    <span>→</span>
+                    <span className="text-foreground">{fmtPct(item.move.prob_to)}</span>
+                    <DeltaPill delta={item.move.delta} className="ml-1" />
+                    <span className="text-xs">over {item.move.window}</span>
+                  </div>
+                </div>
               </div>
             </DialogHeader>
 
@@ -102,5 +108,27 @@ export function DetailModal({ item, onClose }: Props) {
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function MarketThumb({ url, alt }: { url: string | null; alt: string }) {
+  const [errored, setErrored] = useState(false);
+  if (!url || errored) {
+    return (
+      <div
+        aria-hidden
+        className="size-14 shrink-0 rounded-lg border border-border/60 bg-card/40"
+      />
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt={alt}
+      loading="lazy"
+      onError={() => setErrored(true)}
+      className="size-14 shrink-0 rounded-lg border border-border/60 bg-muted object-cover"
+    />
   );
 }
