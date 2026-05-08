@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
-import { setCachedFeed } from "@/lib/redis";
+import { setCachedFeed, wasAlerted, markAlerted } from "@/lib/redis";
 import { WINDOW_MINUTES, isSignificant } from "@/lib/detect/moves";
 import { score } from "@/lib/rank/score";
 import { requireCronAuth } from "@/lib/auth";
+import { broadcast, formatAlert, hasTelegram } from "@/lib/notify/telegram";
 import type { FeedItem, Market, TimeWindow } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -85,7 +86,6 @@ async function buildFeed(window: TimeWindow): Promise<FeedItem[]> {
   const items: FeedItem[] = [];
   const sinceSpark = new Date(Date.now() - SPARKLINE_HOURS * 3600_000).toISOString();
 
-  // dedupe: keep highest-score row per market_id
   const bestByMarket = new Map<string, typeof moves[number]>();
   for (const row of moves ?? []) {
     const market = (Array.isArray(row.market) ? row.market[0] : row.market) as Market | null;
@@ -129,6 +129,63 @@ async function buildFeed(window: TimeWindow): Promise<FeedItem[]> {
   return items.slice(0, TOP_N);
 }
 
+async function broadcastAlerts(feeds: Record<TimeWindow, FeedItem[]>) {
+  if (!hasTelegram()) return { sent: 0, queued: 0, skipped: "no telegram token" };
+
+  const minDelta = Number(process.env.ALERT_MIN_DELTA ?? 0.10);
+  const minLiq = Number(process.env.ALERT_MIN_LIQUIDITY ?? 10000);
+
+  const seenInCycle = new Set<string>();
+  const queue: FeedItem[] = [];
+
+  for (const w of ["15m", "1h", "4h"] as TimeWindow[]) {
+    for (const item of feeds[w]) {
+      if (Math.abs(item.move.delta) < minDelta) continue;
+      if ((item.market.liquidity ?? 0) < minLiq) continue;
+      if (seenInCycle.has(item.market.id)) continue;
+      if (await wasAlerted(item.market.id, w)) continue;
+      seenInCycle.add(item.market.id);
+      queue.push(item);
+      await markAlerted(item.market.id, w, WINDOW_MINUTES[w] * 60);
+    }
+  }
+
+  if (queue.length === 0) return { sent: 0, queued: 0 };
+
+  const db = supabaseServer();
+  const { data: subs } = await db
+    .from("subscribers")
+    .select("chat_id")
+    .eq("paused", false);
+  const chatIds = (subs ?? []).map((s) => Number(s.chat_id));
+  if (chatIds.length === 0) return { sent: 0, queued: queue.length, subscribers: 0 };
+
+  let totalSent = 0;
+  let totalFailed = 0;
+  const deactivated = new Set<number>();
+  for (const item of queue) {
+    const result = await broadcast(chatIds, formatAlert(item));
+    totalSent += result.sent;
+    totalFailed += result.failed;
+    result.deactivated.forEach((id) => deactivated.add(id));
+  }
+
+  if (deactivated.size > 0) {
+    await db
+      .from("subscribers")
+      .update({ paused: true })
+      .in("chat_id", Array.from(deactivated));
+  }
+
+  return {
+    queued: queue.length,
+    subscribers: chatIds.length,
+    sent: totalSent,
+    failed: totalFailed,
+    auto_paused: deactivated.size,
+  };
+}
+
 export async function POST(req: Request) {
   const guard = requireCronAuth(req);
   if (guard) return guard;
@@ -146,14 +203,20 @@ export async function POST(req: Request) {
     "4h": await detectForWindow("4h", (markets ?? []) as Market[]),
   };
 
-  const feeds: Record<TimeWindow, number> = { "15m": 0, "1h": 0, "4h": 0 };
+  const feeds: Record<TimeWindow, FeedItem[]> = { "15m": [], "1h": [], "4h": [] };
   for (const w of ["15m", "1h", "4h"] as TimeWindow[]) {
-    const items = await buildFeed(w);
-    await setCachedFeed(w, items, 120);
-    feeds[w] = items.length;
+    feeds[w] = await buildFeed(w);
+    await setCachedFeed(w, feeds[w], 120);
   }
 
-  return NextResponse.json({ ok: true, detected, feeds });
+  const alerts = await broadcastAlerts(feeds);
+
+  return NextResponse.json({
+    ok: true,
+    detected,
+    feeds: { "15m": feeds["15m"].length, "1h": feeds["1h"].length, "4h": feeds["4h"].length },
+    alerts,
+  });
 }
 
 export async function GET(req: Request) {

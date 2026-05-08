@@ -25,3 +25,22 @@ export async function setCachedFeed(window: TimeWindow, items: FeedItem[], ttl =
   if (!r) return;
   await r.set(FEED_KEY(window), items, { ex: ttl });
 }
+
+const ALERT_KEY = (marketId: string, w: TimeWindow) => `alerted:${marketId}:${w}`;
+
+export async function wasAlerted(marketId: string, window: TimeWindow): Promise<boolean> {
+  const r = redis();
+  if (!r) return false;
+  const v = await r.get(ALERT_KEY(marketId, window));
+  return v !== null;
+}
+
+export async function markAlerted(
+  marketId: string,
+  window: TimeWindow,
+  ttlSeconds: number,
+): Promise<void> {
+  const r = redis();
+  if (!r) return;
+  await r.set(ALERT_KEY(marketId, window), "1", { ex: ttlSeconds });
+}
