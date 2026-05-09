@@ -1,8 +1,8 @@
 import type { NormalizedMarket } from "./types";
 
 const BASE = "https://api.elections.kalshi.com/trade-api/v2";
-const EVENTS_URL = `${BASE}/events?status=open&limit=200`;
-const MARKETS_URL = `${BASE}/markets?status=open&limit=1000`;
+const PAGE_LIMIT = 1000;
+const MAX_PAGES = 10; // hard cap so a runaway cursor can't burn the 60s budget
 
 interface KalshiEvent {
   event_ticker: string;
@@ -35,16 +35,40 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
+async function fetchPaginated<T>(
+  resource: "events" | "markets",
+  pluck: (page: { events?: KalshiEvent[]; markets?: KalshiMarket[] }) => T[],
+): Promise<T[]> {
+  const all: T[] = [];
+  let cursor: string | undefined;
+  for (let i = 0; i < MAX_PAGES; i++) {
+    const url = new URL(`${BASE}/${resource}`);
+    url.searchParams.set("status", "open");
+    url.searchParams.set("limit", String(PAGE_LIMIT));
+    if (cursor) url.searchParams.set("cursor", cursor);
+    const res = await fetch(url, { headers: { accept: "application/json" }, cache: "no-store" });
+    if (!res.ok) {
+      console.warn(`[kalshi] ${resource} page ${i} ${res.status}`);
+      break;
+    }
+    const data = (await res.json()) as {
+      events?: KalshiEvent[];
+      markets?: KalshiMarket[];
+      cursor?: string;
+    };
+    const items = pluck(data);
+    all.push(...items);
+    if (!data.cursor || data.cursor === cursor || items.length === 0) break;
+    cursor = data.cursor;
+  }
+  return all;
+}
+
 async function fetchEventCategoryMap(): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   try {
-    const res = await fetch(EVENTS_URL, {
-      headers: { accept: "application/json" },
-      cache: "no-store",
-    });
-    if (!res.ok) return map;
-    const data = (await res.json()) as { events?: KalshiEvent[] };
-    for (const e of data.events ?? []) {
+    const events = await fetchPaginated<KalshiEvent>("events", (p) => p.events ?? []);
+    for (const e of events) {
       if (e.event_ticker && e.category) {
         map.set(e.event_ticker, e.category);
       }
@@ -56,16 +80,10 @@ async function fetchEventCategoryMap(): Promise<Map<string, string>> {
 }
 
 export async function fetchKalshi(): Promise<NormalizedMarket[]> {
-  const [marketsRes, categoryByEvent] = await Promise.all([
-    fetch(MARKETS_URL, { headers: { accept: "application/json" }, cache: "no-store" }),
+  const [raw, categoryByEvent] = await Promise.all([
+    fetchPaginated<KalshiMarket>("markets", (p) => p.markets ?? []),
     fetchEventCategoryMap(),
   ]);
-  if (!marketsRes.ok) {
-    console.warn(`[kalshi] markets ${marketsRes.status}`);
-    return [];
-  }
-  const data = (await marketsRes.json()) as { markets?: KalshiMarket[] };
-  const raw = data.markets ?? [];
 
   const out: NormalizedMarket[] = [];
   for (const m of raw) {
